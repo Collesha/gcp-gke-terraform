@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reliability-monitor
+  namespace: reliability-monitor
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: reliability-monitor
+  template:
+    metadata:
+      labels:
+        app: reliability-monitor
+    spec:
+      securityContext:
+        fsGroup: 1000
+
+      containers:
+        - name: monitor
+          image: cloud-reliability-monitor:1.0
+          imagePullPolicy: IfNotPresent
+          command: ["python", "-u", "monitor.py"]
+          env:
+            - name: MONITOR_URLS
+              value: "https://collesha.xyz,https://example.com"
+            - name: CHECK_INTERVAL
+              value: "30"
+            - name: DB_PATH
+              value: "/data/uptime.db"
+          volumeMounts:
+            - name: monitor-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+
+        - name: dashboard
+          image: cloud-reliability-monitor:1.0
+          imagePullPolicy: IfNotPresent
+          command:
+            - gunicorn
+            - --bind
+            - 0.0.0.0:5050
+            - --workers
+            - "1"
+            - dashboard:app
+          env:
+            - name: DB_PATH
+              value: "/data/uptime.db"
+          ports:
+            - containerPort: 5050
+          volumeMounts:
+            - name: monitor-data
+              mountPath: /data
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5050
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: "50m"
+              memory: "64Mi"
+            limits:
+              cpu: "250m"
+              memory: "128Mi"
+
+      volumes:
+        - name: monitor-data
+          persistentVolumeClaim:
+            claimName: monitor-data
