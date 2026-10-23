@@ -9,6 +9,7 @@ tfplan
 .terraform.tfstate.lock.info
 crash.log
 crash.*.log
+health_check.log
 
 # Python
 .venv/
