@@ -30,6 +30,15 @@ def initialize_database():
                 error TEXT
             )
         """)
+        connection.execute("""
+            CREATE TABLE IF NOT EXISTS incidents (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                url TEXT NOT NULL,
+                started_at TEXT NOT NULL,
+                resolved_at TEXT,
+                duration_seconds REAL
+        )
+        """)
 
 
 def check_website(url):
@@ -71,6 +80,44 @@ def check_website(url):
             is_up,
             error
         ))
+        open_incident = connection.execute("""
+            SELECT id, started_at
+            FROM incidents
+            WHERE url = ? AND resolved_at IS NULL
+            ORDER BY id DESC
+            LIMIT 1
+        """, (url,)).fetchone()
+
+        if not is_up and open_incident is None:
+            connection.execute("""
+                INSERT INTO incidents (url, started_at)
+                VALUES (?, ?)
+            """, (url, timestamp))
+            print(f"INCIDENT OPENED: {url}", flush=True)
+
+        elif is_up and open_incident is not None:
+            started_at = datetime.fromisoformat(open_incident[1])
+            resolved_at = datetime.fromisoformat(timestamp)
+
+            duration = (
+                resolved_at - started_at
+            ).total_seconds()
+
+            connection.execute("""
+                UPDATE incidents
+                SET resolved_at = ?, duration_seconds = ?
+                WHERE id = ?
+            """, (
+                timestamp,
+                duration,
+                open_incident[0]
+            ))
+
+            print(
+                f"INCIDENT RESOLVED: {url} "
+                f"after {duration:.1f} seconds",
+                flush=True
+            )
 
     result = "UP" if is_up else "DOWN"
 
