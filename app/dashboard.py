@@ -1,0 +1,159 @@
+import os
+import sqlite3
+from flask import Flask, render_template_string
+
+app = Flask(__name__)
+
+DB_PATH = os.getenv("DB_PATH", "uptime.db")
+
+HTML = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Cloud Service Reliability Monitor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f6f9;
+            color: #202938;
+            margin: 0;
+            padding: 40px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: auto;
+        }
+        h1 { margin-bottom: 5px; }
+        .subtitle { color: #667085; margin-bottom: 30px; }
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        .card, .table-container {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+        .label { color: #667085; font-size: 14px; }
+        .value {
+            font-size: 26px;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        .up { color: #16803c; }
+        .down { color: #c62828; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        th { color: #667085; }
+        .table-container { overflow-x: auto; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>Cloud Service Reliability Monitor</h1>
+    <p class="subtitle">Website availability and performance monitoring</p>
+
+    <div class="cards">
+        <div class="card">
+            <div class="label">Latest Recorded Status</div>
+            <div class="value {{ 'up' if latest_up else 'down' }}">
+                {{ 'Operational' if latest_up else 'Down / Unknown' }}
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="label">Availability (Recorded Checks)</div>
+            <div class="value">{{ uptime }}%</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Average Response Time</div>
+            <div class="value">{{ average_response }} ms</div>
+        </div>
+
+        <div class="card">
+            <div class="label">Total Checks</div>
+            <div class="value">{{ total_checks }}</div>
+        </div>
+    </div>
+
+    <div class="table-container">
+        <h2>Recent Monitoring History</h2>
+        <table>
+            <thead>
+                <tr>
+                    <th>Timestamp (UTC)</th>
+                    <th>Website</th>
+                    <th>HTTP Status</th>
+                    <th>Response Time</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in rows %}
+                <tr>
+                    <td>{{ row[0] }}</td>
+                    <td>{{ row[1] }}</td>
+                    <td>{{ row[2] if row[2] is not none else 'N/A' }}</td>
+                    <td>{{ row[3] }} ms</td>
+                    <td class="{{ 'up' if row[4] else 'down' }}">
+                        {{ 'UP' if row[4] else 'DOWN' }}
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5">No monitoring data yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
+"""
+
+@app.route("/")
+def dashboard():
+    with sqlite3.connect(DB_PATH) as connection:
+        rows = connection.execute("""
+            SELECT timestamp, url, status_code, response_ms, is_up
+            FROM checks
+            ORDER BY id DESC
+            LIMIT 20
+        """).fetchall()
+
+        total_checks, successful_checks, average_response = connection.execute("""
+            SELECT
+                COUNT(*),
+                COALESCE(SUM(is_up), 0),
+                COALESCE(AVG(response_ms), 0)
+            FROM checks
+        """).fetchone()
+
+    uptime = round(
+        (successful_checks / total_checks) * 100, 2
+    ) if total_checks else 0
+
+    return render_template_string(
+        HTML,
+        rows=rows,
+        latest_up=bool(rows[0][4]) if rows else False,
+        uptime=uptime,
+        average_response=round(average_response, 2),
+        total_checks=total_checks
+    )
+
+if __name__ == "__main__":
+    app.run(host="127.0.0.1", port=5000, debug=False)
