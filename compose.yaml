@@ -1,0 +1,39 @@
+services:
+  monitor:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloud-reliability-monitor:1.0
+    command: ["python", "-u", "monitor.py"]
+    environment:
+      MONITOR_URLS: "https://collesha.xyz,https://example.com"
+      CHECK_INTERVAL: "30"
+      DB_PATH: /data/uptime.db
+    volumes:
+      - monitor_data:/data
+    restart: unless-stopped
+
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cloud-reliability-monitor:1.0
+    command:
+      - gunicorn
+      - --bind
+      - 0.0.0.0:5050
+      - --workers
+      - "1"
+      - dashboard:app
+    environment:
+      DB_PATH: /data/uptime.db
+    ports:
+      - "127.0.0.1:5050:5050"
+    volumes:
+      - monitor_data:/data
+    depends_on:
+      - monitor
+    restart: unless-stopped
+
+volumes:
+  monitor_data:
