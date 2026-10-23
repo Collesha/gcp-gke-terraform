@@ -1,0 +1,5 @@
+2026-10-23T19:43:46Z | HEALTHY | HTTP 200
+2026-10-23T19:44:08Z | UNHEALTHY | HTTP 000
+---- Diagnostic information ----
+colleshamighty   97229   0.0  0.5 2006608576  87568   ??  S     1:56PM   0:21.84 /Applications/Visual Studio Code.app/Contents/Frameworks/Code Helper (Plugin).app/Contents/MacOS/Code Helper (Plugin) /Users/colleshamighty/.vscode/extensions/ms-python.vscode-pylance-2026.4.1/dist/server.bundle.js --cancellationReceive=file:45f4bcce9ecb57c0f5c880c4eb1dab079686fea4e4 --node-ipc --clientProcessId=24087
+colleshamighty   97153   0.0  0.0 488809424    720   ??  S     1:56PM   0:00.53 /Users/colleshamighty/.vscode/extensions/ms-python.vscode-python-envs-1.40.0-darwin-arm64/python-env-tools/bin/pet server
