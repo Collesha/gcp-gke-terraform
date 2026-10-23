@@ -5,7 +5,14 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timezone
 
-URL = os.getenv("MONITOR_URL", "https://collesha.xyz")
+URLS = [
+    url.strip()
+    for url in os.getenv(
+        "MONITOR_URLS",
+        "https://collesha.xyz,https://example.com"
+    ).split(",")
+    if url.strip()
+]
 INTERVAL = int(os.getenv("CHECK_INTERVAL", "60"))
 DB_PATH = os.getenv("DB_PATH", "uptime.db")
 
@@ -25,14 +32,14 @@ def initialize_database():
         """)
 
 
-def check_website():
+def check_website(url):
     start = time.monotonic()
     status_code = None
     error = None
 
     try:
         request = urllib.request.Request(
-            URL,
+            url,
             headers={"User-Agent": "CloudReliabilityMonitor/1.0"}
         )
 
@@ -58,7 +65,7 @@ def check_website():
             VALUES (?, ?, ?, ?, ?, ?)
         """, (
             timestamp,
-            URL,
+            url,
             status_code,
             response_ms,
             is_up,
@@ -70,7 +77,7 @@ def check_website():
     print(
         f"[{timestamp}] {result} | "
         f"HTTP {status_code} | "
-        f"{response_ms} ms | {URL}"
+        f"{response_ms} ms | {url}"
         + (f" | {error}" if error else ""),
         flush=True
     )
@@ -82,11 +89,12 @@ def main():
 
     initialize_database()
 
-    print(f"Monitoring {URL} every {INTERVAL} seconds...")
+    print(f"Monitoring {len(URLS)} websites every {INTERVAL} seconds...")
 
     try:
         while True:
-            check_website()
+            for url in URLS:
+                check_website(url)
             time.sleep(INTERVAL)
     except KeyboardInterrupt:
         print("\nMonitoring stopped.")
