@@ -9,3 +9,16 @@ tfplan
 .terraform.tfstate.lock.info
 crash.log
 crash.*.log
+
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Local monitoring data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
