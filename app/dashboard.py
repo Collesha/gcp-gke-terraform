@@ -127,32 +127,62 @@ HTML = """
 @app.route("/")
 def dashboard():
     with sqlite3.connect(DB_PATH) as connection:
-        rows = connection.execute("""
+
+        websites = connection.execute("""
+            SELECT
+                url,
+                COUNT(*) AS total_checks,
+                SUM(is_up) AS successful_checks,
+                ROUND(AVG(response_ms), 2) AS average_response
+            FROM checks
+            GROUP BY url
+            ORDER BY url
+        """).fetchall()
+
+        latest_checks = connection.execute("""
+            SELECT
+                c.url,
+                c.timestamp,
+                c.status_code,
+                c.response_ms,
+                c.is_up
+            FROM checks c
+            WHERE c.id = (
+                SELECT MAX(c2.id)
+                FROM checks c2
+                WHERE c2.url = c.url
+            )
+        """).fetchall()
+
+        history = connection.execute("""
             SELECT timestamp, url, status_code, response_ms, is_up
             FROM checks
             ORDER BY id DESC
             LIMIT 20
         """).fetchall()
 
-        total_checks, successful_checks, average_response = connection.execute("""
-            SELECT
-                COUNT(*),
-                COALESCE(SUM(is_up), 0),
-                COALESCE(AVG(response_ms), 0)
-            FROM checks
-        """).fetchone()
+    latest_by_url = {
+        row[0]: row for row in latest_checks
+    }
 
-    uptime = round(
-        (successful_checks / total_checks) * 100, 2
-    ) if total_checks else 0
+    monitored_sites = []
+
+    for url, total, successful, avg_response in websites:
+        latest = latest_by_url[url]
+
+        monitored_sites.append({
+            "url": url,
+            "total_checks": total,
+            "uptime": round((successful / total) * 100, 2),
+            "average_response": avg_response,
+            "latest_status": bool(latest[4]),
+            "last_checked": latest[1]
+        })
 
     return render_template_string(
         HTML,
-        rows=rows,
-        latest_up=bool(rows[0][4]) if rows else False,
-        uptime=uptime,
-        average_response=round(average_response, 2),
-        total_checks=total_checks
+        sites=monitored_sites,
+        rows=history
     )
 
 if __name__ == "__main__":
