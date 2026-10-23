@@ -128,6 +128,13 @@ def check_website(url):
         + (f" | {error}" if error else ""),
         flush=True
     )
+    return {
+        "url": url,
+        "status_code": status_code,
+        "response_ms": response_ms,
+        "is_up": is_up,
+        "error": error
+    }
 
 
 def main():
