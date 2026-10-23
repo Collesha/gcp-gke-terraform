@@ -242,5 +242,16 @@ def dashboard():
         incidents=incidents
     )
 
+@app.route("/health")
+def health():
+    try:
+        with sqlite3.connect(DB_PATH) as connection:
+            connection.execute("SELECT 1").fetchone()
+
+        return {"status": "healthy"}, 200
+
+    except sqlite3.Error:
+        return {"status": "unhealthy"}, 503
+
 if __name__ == "__main__":
     app.run(host="127.0.0.1", port=5050, debug=False)
