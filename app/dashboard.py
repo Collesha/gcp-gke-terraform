@@ -67,28 +67,33 @@ HTML = """
     <p class="subtitle">Website availability and performance monitoring</p>
 
     <div class="cards">
-        <div class="card">
-            <div class="label">Latest Recorded Status</div>
-            <div class="value {{ 'up' if latest_up else 'down' }}">
-                {{ 'Operational' if latest_up else 'Down / Unknown' }}
-            </div>
+    {% for site in sites %}
+    <div class="card">
+        <div class="label">{{ site.url }}</div>
+
+        <div class="value {{ 'up' if site.latest_status else 'down' }}">
+            {{ 'Operational' if site.latest_status else 'Down' }}
         </div>
 
-        <div class="card">
-            <div class="label">Availability (Recorded Checks)</div>
-            <div class="value">{{ uptime }}%</div>
-        </div>
+        <p><strong>Availability:</strong> {{ site.uptime }}%</p>
 
-        <div class="card">
-            <div class="label">Average Response Time</div>
-            <div class="value">{{ average_response }} ms</div>
-        </div>
+        <p>
+            <strong>Average Response:</strong>
+            {{ site.average_response }} ms
+        </p>
 
-        <div class="card">
-            <div class="label">Total Checks</div>
-            <div class="value">{{ total_checks }}</div>
-        </div>
+        <p>
+            <strong>Total Checks:</strong>
+            {{ site.total_checks }}
+        </p>
+
+        <p>
+            <strong>Last Checked:</strong>
+            {{ site.last_checked }}
+        </p>
     </div>
+    {% endfor %}
+</div>
 
     <div class="table-container">
         <h2>Recent Monitoring History</h2>
