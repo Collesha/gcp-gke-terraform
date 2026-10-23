@@ -1,3 +1,4 @@
+from multiprocessing.dummy import connection
 import os
 import sqlite3
 from flask import Flask, render_template_string
@@ -124,6 +125,45 @@ HTML = """
             </tbody>
         </table>
     </div>
+    <div class="table-container" style="margin-top: 25px;">
+    <h2>Incident History</h2>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Website</th>
+                <th>Started (UTC)</th>
+                <th>Resolved (UTC)</th>
+                <th>Duration</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+
+        <tbody>
+            {% for incident in incidents %}
+            <tr>
+                <td>{{ incident[0] }}</td>
+                <td>{{ incident[1] }}</td>
+                <td>{{ incident[2] or 'Ongoing' }}</td>
+                <td>
+                    {% if incident[3] is not none %}
+                        {{ incident[3] | round(2) }} seconds
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td class="{{ 'up' if incident[2] else 'down' }}">
+                    {{ 'Resolved' if incident[2] else 'Ongoing' }}
+                </td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="5">No incidents recorded.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
 </div>
 </body>
 </html>
@@ -166,6 +206,17 @@ def dashboard():
             LIMIT 20
         """).fetchall()
 
+    incidents = connection.execute("""
+            SELECT
+                url,
+                started_at,
+                resolved_at,
+                duration_seconds
+            FROM incidents
+            ORDER BY id DESC
+            LIMIT 10
+        """).fetchall()
+
     latest_by_url = {
         row[0]: row for row in latest_checks
     }
@@ -187,7 +238,8 @@ def dashboard():
     return render_template_string(
         HTML,
         sites=monitored_sites,
-        rows=history
+        rows=history,
+        incidents=incidents
     )
 
 if __name__ == "__main__":
