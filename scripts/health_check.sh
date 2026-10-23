@@ -17,5 +17,7 @@ else
 
     echo "---- Diagnostic information ----" | tee -a "$LOG_FILE"
 
-    ps aux | grep '[p]ython' | tee -a "$LOG_FILE"
+    echo "Processes listening on port 5050:" | tee -a "$LOG_FILE"
+
+    lsof -nP -iTCP:5050 -sTCP:LISTEN | tee -a "$LOG_FILE" || true
 fi
