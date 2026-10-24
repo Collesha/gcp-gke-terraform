@@ -1,0 +1,13 @@
+.git
+.venv
+__pycache__
+*.pyc
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+.env
+.terraform
+*.tfstate
+*.tfstate.*
+health_check.log
