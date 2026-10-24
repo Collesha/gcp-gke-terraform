@@ -1,11 +1,29 @@
-from multiprocessing.dummy import connection
 import os
 import sqlite3
+from contextlib import closing
+from datetime import datetime, timezone
 from flask import Flask, render_template_string
 
 app = Flask(__name__)
 
 DB_PATH = os.getenv("DB_PATH", "uptime.db")
+STALE_THRESHOLD_SECONDS = int(os.getenv("STALE_THRESHOLD_SECONDS", "90"))
+
+def get_monitoring_status(is_up, timestamp, now=None):
+    if now is None:
+        now = datetime.now(timezone.utc)
+
+    last_checked = datetime.fromisoformat(timestamp)
+
+    if last_checked.tzinfo is None:
+        last_checked = last_checked.replace(tzinfo=timezone.utc)
+
+    age_seconds = (now - last_checked).total_seconds()
+
+    if age_seconds > STALE_THRESHOLD_SECONDS:
+        return "STALE"
+
+    return "UP" if is_up else "DOWN"
 
 HTML = """
 <!DOCTYPE html>
@@ -46,8 +64,10 @@ HTML = """
             font-weight: bold;
             margin-top: 10px;
         }
+
         .up { color: #16803c; }
         .down { color: #c62828; }
+        .stale { color: #d97706; }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -72,8 +92,14 @@ HTML = """
     <div class="card">
         <div class="label">{{ site.url }}</div>
 
-        <div class="value {{ 'up' if site.latest_status else 'down' }}">
-            {{ 'Operational' if site.latest_status else 'Down' }}
+        <div class="value {{ site.status | lower }}">
+            {% if site.status == 'UP' %}
+                Operational
+            {% elif site.status == 'DOWN' %}
+                Down
+            {% else %}
+                Stale
+            {% endif %}
         </div>
 
         <p><strong>Availability:</strong> {{ site.uptime }}%</p>
@@ -171,7 +197,7 @@ HTML = """
 
 @app.route("/")
 def dashboard():
-    with sqlite3.connect(DB_PATH) as connection:
+    with closing(sqlite3.connect(DB_PATH)) as connection:
 
         websites = connection.execute("""
             SELECT
@@ -206,32 +232,37 @@ def dashboard():
             LIMIT 20
         """).fetchall()
 
-    incidents = connection.execute("""
-            SELECT
-                url,
-                started_at,
-                resolved_at,
-                duration_seconds
-            FROM incidents
-            ORDER BY id DESC
-            LIMIT 10
-        """).fetchall()
+        incidents = connection.execute("""
+                SELECT
+                    url,
+                    started_at,
+                    resolved_at,
+                    duration_seconds
+                FROM incidents
+                ORDER BY id DESC
+                LIMIT 10
+            """).fetchall()
 
-    latest_by_url = {
-        row[0]: row for row in latest_checks
-    }
+        latest_by_url = {
+            row[0]: row for row in latest_checks
+        }
 
     monitored_sites = []
 
     for url, total, successful, avg_response in websites:
         latest = latest_by_url[url]
 
+        current_status = get_monitoring_status(
+            is_up=bool(latest[4]),
+            timestamp=latest[1]
+        )
+
         monitored_sites.append({
             "url": url,
             "total_checks": total,
             "uptime": round((successful / total) * 100, 2),
             "average_response": avg_response,
-            "latest_status": bool(latest[4]),
+            "status": current_status,
             "last_checked": latest[1]
         })
 
