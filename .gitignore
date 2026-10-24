@@ -23,3 +23,6 @@ __pycache__/
 *.db-wal
 *.db-shm
 .env
+
+# OS generated files
+.DS_Store
