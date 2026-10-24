@@ -20,7 +20,7 @@ spec:
 
       containers:
         - name: monitor
-          image: cloud-reliability-monitor:1.0
+          image: cloud-reliability-monitor:1.1
           imagePullPolicy: IfNotPresent
           command: ["python", "-u", "monitor.py"]
           env:
@@ -42,7 +42,7 @@ spec:
               memory: "128Mi"
 
         - name: dashboard
-          image: cloud-reliability-monitor:1.0
+          image: cloud-reliability-monitor:1.1
           imagePullPolicy: IfNotPresent
           command:
             - gunicorn
